@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Visionary PC Editor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1117;
+      --panel: #121b24;
+      --panel-2: #17232e;
+      --line: #2a3a47;
+      --ink: #edf7f2;
+      --muted: #91a4af;
+      --accent: #45d39a;
+      --accent-2: #88f0c4;
+      --danger: #ff7185;
+      --warning: #ffc45c;
+      --radius: 12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--ink); overflow: hidden; }
+    button, input, select, textarea { font: inherit; }
+    button, select, input, textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0d151d;
+      color: var(--ink);
+    }
+    button { min-height: 38px; padding: 8px 12px; cursor: pointer; font-weight: 750; }
+    button:hover { border-color: var(--accent); }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    input, select, textarea { width: 100%; min-height: 38px; padding: 8px 10px; }
+    input[type="checkbox"] { width: 18px; min-height: 18px; accent-color: var(--accent); }
+    input[type="color"] { padding: 3px; }
+    textarea { min-height: 92px; resize: vertical; }
+    .primary { background: var(--accent); border-color: var(--accent); color: #062117; }
+    .danger { color: #ffd6dc; border-color: #6e3340; }
+    .editor { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+    .topbar {
+      display: flex; align-items: center; gap: 9px; min-height: 58px; padding: 9px 12px;
+      border-bottom: 1px solid var(--line); background: #0f1820; overflow-x: auto;
+    }
+    .brand { display: flex; align-items: center; gap: 9px; margin-right: 8px; white-space: nowrap; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #062117; font-weight: 950; }
+    .brand strong { display: block; font-size: .95rem; }
+    .brand small { display: block; color: var(--muted); font-size: .7rem; }
+    .topbar .compact { width: auto; min-width: 130px; }
+    .spacer { flex: 1; }
+    .workspace { display: grid; grid-template-columns: 260px minmax(420px, 1fr) 320px; min-height: 0; }
+    .sidebar { min-height: 0; overflow: auto; background: var(--panel); }
+    .sidebar.left { border-right: 1px solid var(--line); }
+    .sidebar.right { border-left: 1px solid var(--line); }
+    .side-section { padding: 13px; border-bottom: 1px solid var(--line); }
+    .side-section h2, .side-section h3 { margin: 0 0 9px; font-size: .84rem; letter-spacing: .04em; text-transform: uppercase; }
+    .side-section p { margin: 0 0 9px; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .tool-grid button { min-height: 50px; font-size: .78rem; }
+    .tree { display: grid; gap: 5px; }
+    .tree button { display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; font-size: .76rem; font-weight: 650; }
+    .tree button[aria-current="true"] { background: rgba(69, 211, 154, .15); border-color: var(--accent); }
+    .canvas-area { min-width: 0; min-height: 0; overflow: auto; padding: 22px; background-color: #080d12; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 20px 20px; }
+    .device-shell { margin: 0 auto; min-height: 100%; transition: width .2s ease; }
+    .device-frame { overflow: hidden; min-height: 680px; border: 8px solid #202b34; border-radius: 22px; background: white; box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+    .device-frame.desktop { border-radius: 10px; }
+    iframe { display: block; width: 100%; height: calc(100vh - 140px); min-height: 650px; border: 0; background: white; }
+    .empty-canvas { display: grid; place-items: center; min-height: 650px; padding: 30px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px; background: rgba(18,27,36,.78); }
+    .empty-canvas strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 1.25rem; }
+    .property-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .property-grid .wide { grid-column: 1 / -1; }
+    .field { display: grid; gap: 5px; min-width: 0; }
+    .field label, .field > span { color: var(--muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .inline-check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: .78rem; }
+    .inline-check input { flex: 0 0 auto; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+    .button-row button { flex: 1 1 auto; font-size: .76rem; }
+    .palette-row { display: grid; grid-template-columns: 1fr 55px; gap: 8px; align-items: end; }
+    .task-list { max-height: 215px; overflow: auto; display: grid; gap: 5px; margin-top: 8px; }
+    .task-list button { display: grid; grid-template-columns: 1fr auto; gap: 8px; text-align: left; font-size: .72rem; }
+    .task-list button span:last-child { color: var(--accent-2); }
+    .statusbar { display: flex; gap: 12px; align-items: center; min-height: 31px; padding: 6px 12px; border-top: 1px solid var(--line); background: #0f1820; color: var(--muted); font-size: .73rem; }
+    .statusbar .status { color: var(--accent-2); }
+    .statusbar .status.error { color: var(--danger); }
+    .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.72); }
+    .modal[hidden] { display: none; }
+    .modal-card { width: min(720px, 100%); max-height: 85vh; overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 30px 100px rgba(0,0,0,.6); }
+    .modal-card h2 { margin-top: 0; }
+    .validation-list { display: grid; gap: 8px; padding: 0; list-style: none; }
+    .validation-list li { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+    .validation-list .error { border-color: #6e3340; }
+    .validation-list .warning { border-color: #705626; }
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: 220px minmax(360px, 1fr) 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="editor">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">V</span><span><strong>Visionary Editor</strong><small>Standalone PC layout builder</small></span></div>
+      <button id="open-html" class="primary" type="button">Open HTML</button>
+      <input id="html-file" type="file" accept="text/html,.html,.htm" hidden>
+      <button id="open-project" type="button">Open project</button>
+      <input id="project-file" type="file" accept="application/json,.json" hidden>
+      <button id="save-project" type="button" disabled>Save project</button>
+      <button id="undo" type="button" disabled>Undo</button>
+      <button id="redo" type="button" disabled>Redo</button>
+      <span class="spacer"></span>
+      <select id="device" class="compact" aria-label="Preview device">
+        <option value="390">iPhone · 390px</option>
+        <option value="412">Samsung · 412px</option>
+        <option value="768">Tablet · 768px</option>
+        <option value="1280" selected>Desktop · 1280px</option>
+      </select>
+      <select id="preview-scope" class="compact" aria-label="Preview scope">
+        <option value="page" selected>Page preview</option>
+        <option value="component">Selected component</option>
+      </select>
+      <button id="preview-mode" type="button" disabled>Preview mode</button>
+      <button id="validate" type="button" disabled>Validate</button>
+      <button id="export-html" class="primary" type="button" disabled>Generate index.html</button>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar left">
+        <section class="side-section">
+          <h2>Tab</h2>
+          <select id="view-select" disabled><option>Open an HTML file</option></select>
+          <div class="button-row">
+            <button id="tab-up" type="button" disabled>Move up</button>
+            <button id="tab-down" type="button" disabled>Move down</button>
+          </div>
+        </section>
+        <section class="side-section">
+          <h2>Add component</h2>
+          <p>Select a panel, form, section, or grid in the preview first.</p>
+          <div class="tool-grid">
+            <button data-add="dropdown" type="button" disabled>Dropdown</button>
+            <button data-add="text" type="button" disabled>Text field</button>
+            <button data-add="textarea" type="button" disabled>Comment box</button>
+            <button data-add="button" type="button" disabled>Button</button>
+            <button data-add="heading" type="button" disabled>Heading</button>
+            <button data-add="section" type="button" disabled>Section</button>
+          </div>
+        </section>
+        <section class="side-section">
+          <h2>Components</h2>
+          <p>Click an item or select it directly in the preview.</p>
+          <div id="component-tree" class="tree"><p>No tab loaded.</p></div>
+        </section>
+      </aside>
+
+      <main class="canvas-area">
+        <div id="empty-canvas" class="empty-canvas"><div><strong>Open your current index.html</strong><p>The editor works locally. Your original file is not changed until you generate a new one.</p><button id="empty-open-html" class="primary" type="button">Choose index.html</button></div></div>
+        <div id="device-shell" class="device-shell" hidden>
+          <div id="device-frame" class="device-frame desktop"><iframe id="preview" title="Visionary app preview" sandbox="allow-same-origin"></iframe></div>
+        </div>
+      </main>
+
+      <aside class="sidebar right">
+        <section class="side-section">
+          <h2>Selected component</h2>
+          <p id="selection-help">Select an element in the preview.</p>
+          <div id="component-properties" hidden>
+            <div class="property-grid">
+              <div class="field wide"><label for="prop-label">Label or text</label><input id="prop-label" type="text"></div>
+              <div class="field wide"><label for="prop-id">HTML ID</label><input id="prop-id" type="text"></div>
+              <div class="field"><label for="prop-span">Grid width</label><select id="prop-span"></select></div>
+              <div class="field"><label for="prop-order">Order</label><input id="prop-order" type="number" min="0" step="1"></div>
+              <label class="inline-check wide"><input id="prop-visible" type="checkbox" checked> Visible in generated app</label>
+              <label class="inline-check wide"><input id="prop-lock" type="checkbox"> Lock component</label>
+            </div>
+            <div id="dropdown-properties" hidden>
+              <div class="field" style="margin-top:10px"><label for="prop-options">Dropdown choices, one per line</label><textarea id="prop-options"></textarea></div>
+            </div>
+            <div class="button-row">
+              <button id="move-before" type="button">Move up</button>
+              <button id="move-after" type="button">Move down</button>
+              <button id="duplicate" type="button">Duplicate</button>
+              <button id="delete-component" class="danger" type="button">Delete</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <h2>Grid</h2>
+          <div class="property-grid">
+            <div class="field"><label for="grid-gap">Gap</label><input id="grid-gap" type="number" value="12" min="0" max="80"></div>
+            <div class="field"><label for="grid-columns">Columns</label><select id="grid-columns"></select></div>
+          </div>
+          <div class="button-row"><button id="apply-grid" type="button" disabled>Apply to selected parent</button></div>
+        </section>
+
+        <section class="side-section">
+          <h2>Theme colors</h2>
+          <div class="field"><label for="theme-target">Theme to edit</label><select id="theme-target" disabled></select></div>
+          <div class="palette-row"><div class="field"><label for="color-page">Page</label><input id="color-page-text" type="text"></div><input id="color-page" type="color"></div>
+          <div class="palette-row"><div class="field"><label for="color-panel">Panel</label><input id="color-panel-text" type="text"></div><input id="color-panel" type="color"></div>
+          <div class="palette-row"><div class="field"><label for="color-text">Text</label><input id="color-text-text" type="text"></div><input id="color-text" type="color"></div>
+          <div class="palette-row"><div class="field"><label for="color-accent">Accent</label><input id="color-accent-text" type="text"></div><input id="color-accent" type="color"></div>
+          <div class="palette-row"><div class="field"><label for="color-border">Border</label><input id="color-border-text" type="text"></div><input id="color-border" type="color"></div>
+          <div class="button-row"><button id="apply-colors" type="button" disabled>Apply colors</button><button id="reset-colors" type="button" disabled>Reset theme override</button></div>
+        </section>
+
+        <section class="side-section">
+          <h2>Tasks</h2>
+          <p>Edit existing task defaults or add custom scheduled tasks.</p>
+          <div class="field"><label for="task-select">Current task</label><select id="task-select" disabled></select></div>
+          <div id="task-properties" hidden>
+            <div class="field"><label for="task-name">Task name</label><input id="task-name" type="text"></div>
+            <div class="property-grid">
+              <div class="field"><label for="task-points">Points</label><input id="task-points" type="number" min="0" max="10000"></div>
+              <label class="inline-check" style="align-self:end"><input id="task-active" type="checkbox" checked> Active</label>
+            </div>
+            <div class="button-row"><button id="save-task" type="button">Save task</button><button id="reset-task" type="button">Reset</button></div>
+          </div>
+          <details style="margin-top:10px">
+            <summary>Add custom task</summary>
+            <div class="field"><label for="new-task-name">Name</label><input id="new-task-name" type="text"></div>
+            <div class="property-grid">
+              <div class="field"><label for="new-task-section">Section</label><input id="new-task-section" type="text" value="Custom Tasks"></div>
+              <div class="field"><label for="new-task-time">Time</label><input id="new-task-time" type="text" placeholder="10:00"></div>
+              <div class="field"><label for="new-task-points">Points</label><input id="new-task-points" type="number" value="25" min="0"></div>
+              <label class="inline-check" style="align-self:end"><input id="new-task-attribution" type="checkbox" checked> Completed By</label>
+            </div>
+            <div class="button-row"><button id="add-task" type="button" disabled>Add task</button></div>
+          </details>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="statusbar"><span id="status" class="status">Ready. Open an HTML file.</span><span class="spacer"></span><span id="document-info">No document loaded</span></footer>
+  </div>
+
+  <div id="validation-modal" class="modal" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="validation-title">
+      <h2 id="validation-title">Validation results</h2>
+      <ul id="validation-list" class="validation-list"></ul>
+      <div class="button-row"><button id="close-validation" class="primary" type="button">Close</button></div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var EDITOR_VERSION = 1;
+      var STYLE_ID = "visionary-generated-layout";
+      var CONFIG_ID = "visionary-local-task-defaults";
+      var sourceDocument = null;
+      var sourceName = "index.html";
+      var selectedViewId = "";
+      var selectedComponentId = "";
+      var editMode = true;
+      var nextComponentId = 1;
+      var undoStack = [];
+      var redoStack = [];
+      var renderTimer = null;
+      var themeOverrides = {};
+
+      var openHtmlButton = document.getElementById("open-html");
+      var htmlFile = document.getElementById("html-file");
+      var openProjectButton = document.getElementById("open-project");
+      var projectFile = document.getElementById("project-file");
+      var saveProjectButton = document.getElementById("save-project");
+      var undoButton = document.getElementById("undo");
+      var redoButton = document.getElementById("redo");
+      var deviceSelect = document.getElementById("device");
+      var previewScope = document.getElementById("preview-scope");
+      var previewModeButton = document.getElementById("preview-mode");
+      var validateButton = document.getElementById("validate");
+      var exportButton = document.getElementById("export-html");
+      var viewSelect = document.getElementById("view-select");
+      var tabUpButton = document.getElementById("tab-up");
+      var tabDownButton = document.getElementById("tab-down");
+      var componentTree = document.getElementById("component-tree");
+      var preview = document.getElementById("preview");
+      var emptyCanvas = document.getElementById("empty-canvas");
+      var deviceShell = document.getElementById("device-shell");
+      var deviceFrame = document.getElementById("device-frame");
+      var selectionHelp = document.getElementById("selection-help");
+      var componentProperties = document.getElementById("component-properties");
+      var propLabel = document.getElementById("prop-label");
+      var propId = document.getElementById("prop-id");
+      var propSpan = document.getElementById("prop-span");
+      var propOrder = document.getElementById("prop-order");
+      var propVisible = document.getElementById("prop-visible");
+      var propLock = document.getElementById("prop-lock");
+      var dropdownProperties = document.getElementById("dropdown-properties");
+      var propOptions = document.getElementById("prop-options");
+      var moveBeforeButton = document.getElementById("move-before");
+      var moveAfterButton = document.getElementById("move-after");
+      var duplicateButton = document.getElementById("duplicate");
+      var deleteButton = document.getElementById("delete-component");
+      var gridGap = document.getElementById("grid-gap");
+      var gridColumns = document.getElementById("grid-columns");
+      var applyGridButton = document.getElementById("apply-grid");
+      var themeTarget = document.getElementById("theme-target");
+      var applyColorsButton = document.getElementById("apply-colors");
+      var resetColorsButton = document.getElementById("reset-colors");
+      var taskSelect = document.getElementById("task-select");
+      var taskProperties = document.getElementById("task-properties");
+      var taskName = document.getElementById("task-name");
+      var taskPoints = document.getElementById("task-points");
+      var taskActive = document.getElementById("task-active");
+      var saveTaskButton = document.getElementById("save-task");
+      var resetTaskButton = document.getElementById("reset-task");
+      var addTaskButton = document.getElementById("add-task");
+      var statusElement = document.getElementById("status");
+      var documentInfo = document.getElementById("document-info");
+      var validationModal = document.getElementById("validation-modal");
+      var validationList = document.getElementById("validation-list");
+
+      for (var span = 1; span <= 12; span += 1) {
+        var spanOption = document.createElement("option");
+        spanOption.value = String(span);
+        spanOption.textContent = span + " / 12";
+        if (span === 12) spanOption.selected = true;
+        propSpan.appendChild(spanOption);
+      }
+      [1, 2, 3, 4, 6, 12].forEach(function (columns) {
+        var option = document.createElement("option");
+        option.value = String(columns);
+        option.textContent = columns + " columns";
+        if (columns === 12) option.selected = true;
+        gridColumns.appendChild(option);
+      });
+
+      function setStatus(message, isError) {
+        statusElement.textContent = message;
+        statusElement.classList.toggle("error", Boolean(isError));
+      }
+
+      function serializeDocument(doc) {
+        return "<!doctype html>\n" + doc.documentElement.outerHTML;
+      }
+
+      function parseHtml(html) {
+        return new DOMParser().parseFromString(html, "text/html");
+      }
+
+      function download(contents, name, type) {
+        var blob = new Blob([contents], { type: type || "application/octet-stream" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      }
+
+      function safeId(value) {
+        return String(value || "component").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "component";
+      }
+
+      function uniqueHtmlId(base, ignoreElement) {
+        var candidate = safeId(base);
+        var suffix = 2;
+        while (sourceDocument.getElementById(candidate) && sourceDocument.getElementById(candidate) !== ignoreElement) {
+          candidate = safeId(base) + "-" + suffix;
+          suffix += 1;
+        }
+        return candidate;
+      }
+
+      function uniqueEditorId() {
+        var id;
+        do {
+          id = "ve-" + nextComponentId;
+          nextComponentId += 1;
+        } while (sourceDocument.querySelector('[data-ve-id="' + id + '"]'));
+        return id;
+      }
+
+      function componentCandidates(view) {
+        if (!view) return [];
+        var selector = [
+          ".form-tile", ".panel", ".daily-checklist-group", ".field", ".actions",
+          ".daily-check-item", ".daily-allocation-check-row", ".version-card",
+          "fieldset", "details", "h1", "h2", "h3", "button", "select", "textarea"
+        ].join(",");
+        return Array.prototype.filter.call(view.querySelectorAll(selector), function (element) {
+          if (element.closest("[data-ve-generated-control]")) return false;
+          var parentCandidate = element.parentElement && element.parentElement.closest(selector);
+          if (parentCandidate && ["BUTTON", "SELECT", "TEXTAREA"].indexOf(element.tagName) !== -1 && parentCandidate.classList.contains("field")) return false;
+          return true;
+        });
+      }
+
+      function assignEditorIds() {
+        var max = 0;
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("[data-ve-id]"), function (element) {
+          var match = /^ve-(\d+)$/.exec(element.getAttribute("data-ve-id"));
+          if (match) max = Math.max(max, Number(match[1]));
+        });
+        nextComponentId = max + 1;
+        views().forEach(function (view) {
+          if (!view.hasAttribute("data-ve-id")) view.setAttribute("data-ve-id", uniqueEditorId());
+          componentCandidates(view).forEach(function (element) {
+            if (!element.hasAttribute("data-ve-id")) element.setAttribute("data-ve-id", uniqueEditorId());
+          });
+        });
+      }
+
+      function views() {
+        if (!sourceDocument) return [];
+        return Array.prototype.slice.call(sourceDocument.querySelectorAll("#login-view, main > .app-view"));
+      }
+
+      function viewTitle(view) {
+        var heading = view.querySelector("h1, h2");
+        return heading ? heading.textContent.trim() : (view.id || "Untitled tab");
+      }
+
+      function selectedView() {
+        return sourceDocument ? sourceDocument.getElementById(selectedViewId) : null;
+      }
+
+      function selectedComponent() {
+        return sourceDocument ? sourceDocument.querySelector('[data-ve-id="' + selectedComponentId + '"]') : null;
+      }
+
+      function layoutStyleText() {
+        var themeCss = Object.keys(themeOverrides).map(function (theme) {
+          var values = themeOverrides[theme];
+          var selector = theme === "default" ? ":root" : 'html[data-theme="' + theme + '"]';
+          return selector + "{" + Object.keys(values).map(function (key) { return key + ":" + values[key] + ";"; }).join("") + "}";
+        }).join("\n");
+        return [
+          "/* Generated by Visionary PC Editor */",
+          '[data-ve-hidden="true"]{display:none!important;}',
+          '[data-ve-grid="true"]{display:grid!important;grid-template-columns:repeat(var(--ve-columns,12),minmax(0,1fr))!important;gap:var(--ve-gap,12px)!important;align-items:start;}',
+          '[data-ve-grid="true"]>[data-ve-id]{grid-column:span min(var(--ve-span,12),var(--ve-columns,12));order:var(--ve-order,0);min-width:0;}',
+          '@media(max-width:600px){[data-ve-grid="true"]>[data-ve-id]{grid-column:span min(var(--ve-mobile-span,var(--ve-span,12)),var(--ve-columns,12));}}',
+          themeCss
+        ].join("\n");
+      }
+
+      function ensureGeneratedStyle(doc) {
+        var style = doc.getElementById(STYLE_ID);
+        if (!style) {
+          style = doc.createElement("style");
+          style.id = STYLE_ID;
+          doc.head.appendChild(style);
+        }
+        style.textContent = layoutStyleText();
+      }
+
+      function readThemeOverrides() {
+        themeOverrides = {};
+        var style = sourceDocument.getElementById(STYLE_ID);
+        if (!style) return;
+        try {
+          var marker = style.getAttribute("data-ve-theme-json");
+          if (marker) themeOverrides = JSON.parse(marker);
+        } catch (error) { themeOverrides = {}; }
+      }
+
+      function writeThemeMetadata(doc) {
+        var style = doc.getElementById(STYLE_ID);
+        if (style) style.setAttribute("data-ve-theme-json", JSON.stringify(themeOverrides));
+      }
+
+      function snapshot() {
+        if (!sourceDocument) return;
+        undoStack.push({ html: serializeDocument(sourceDocument), selectedViewId: selectedViewId, selectedComponentId: selectedComponentId, themes: JSON.parse(JSON.stringify(themeOverrides)) });
+        if (undoStack.length > 10) undoStack.shift();
+        redoStack = [];
+        updateHistoryButtons();
+      }
+
+      function restoreSnapshot(state) {
+        sourceDocument = parseHtml(state.html);
+        selectedViewId = state.selectedViewId;
+        selectedComponentId = state.selectedComponentId;
+        themeOverrides = state.themes || {};
+        assignEditorIds();
+        populateViews();
+        populateThemes();
+        populateTasks();
+        renderAll();
+      }
+
+      function updateHistoryButtons() {
+        undoButton.disabled = !undoStack.length;
+        redoButton.disabled = !redoStack.length;
+      }
+
+      function mutate(callback, message) {
+        if (!sourceDocument) return;
+        snapshot();
+        callback();
+        ensureGeneratedStyle(sourceDocument);
+        writeThemeMetadata(sourceDocument);
+        assignEditorIds();
+        populateComponentTree();
+        populateTasks();
+        renderAll();
+        if (message) setStatus(message, false);
+      }
+
+      function loadDocument(html, filename) {
+        var parsed = parseHtml(html);
+        if (!parsed.documentElement || !parsed.body) throw new Error("The selected file is not a complete HTML document.");
+        sourceDocument = parsed;
+        sourceName = filename || "index.html";
+        undoStack = [];
+        redoStack = [];
+        selectedComponentId = "";
+        readThemeOverrides();
+        assignEditorIds();
+        ensureGeneratedStyle(sourceDocument);
+        writeThemeMetadata(sourceDocument);
+        var availableViews = views();
+        if (!availableViews.length) throw new Error("No editable app pages were found in this HTML file.");
+        selectedViewId = availableViews.length > 1 ? availableViews[1].id : (availableViews[0] ? availableViews[0].id : "");
+        populateViews();
+        populateThemes();
+        populateTasks();
+        enableEditor(true);
+        emptyCanvas.hidden = true;
+        deviceShell.hidden = false;
+        renderAll();
+        documentInfo.textContent = sourceName + " · " + Math.round(html.length / 1024) + " KB";
+        setStatus("HTML loaded. Select a component in the preview.", false);
+      }
+
+      function enableEditor(enabled) {
+        [saveProjectButton, previewModeButton, validateButton, exportButton, viewSelect, tabUpButton, tabDownButton, applyColorsButton, resetColorsButton, themeTarget, taskSelect, addTaskButton].forEach(function (control) { control.disabled = !enabled; });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-add]"), function (button) { button.disabled = !enabled; });
+      }
+
+      function populateViews() {
+        viewSelect.innerHTML = "";
+        views().forEach(function (view) {
+          var option = document.createElement("option");
+          option.value = view.id;
+          option.textContent = viewTitle(view);
+          viewSelect.appendChild(option);
+        });
+        if (sourceDocument.getElementById(selectedViewId)) viewSelect.value = selectedViewId;
+      }
+
+      function componentName(element) {
+        if (!element) return "Unknown";
+        var label = element.querySelector(":scope > label, :scope > h1, :scope > h2, :scope > h3, :scope > summary, :scope > strong");
+        var text = label ? label.textContent : element.textContent;
+        text = String(text || "").replace(/\s+/g, " ").trim().slice(0, 48);
+        return text || element.id || element.tagName.toLowerCase();
+      }
+
+      function populateComponentTree() {
+        componentTree.innerHTML = "";
+        var view = selectedView();
+        if (!view) { componentTree.innerHTML = "<p>No tab selected.</p>"; return; }
+        componentCandidates(view).forEach(function (element) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.dataset.componentId = element.getAttribute("data-ve-id");
+          button.setAttribute("aria-current", button.dataset.componentId === selectedComponentId ? "true" : "false");
+          var type = document.createElement("span");
+          type.textContent = element.tagName.toLowerCase();
+          type.style.color = "var(--accent-2)";
+          var name = document.createElement("span");
+          name.textContent = componentName(element);
+          button.append(type, name);
+          componentTree.appendChild(button);
+        });
+      }
+
+      function componentTextTarget(element) {
+        if (!element) return null;
+        if (["BUTTON", "H1", "H2", "H3", "SUMMARY", "LABEL"].indexOf(element.tagName) !== -1) return element;
+        return element.querySelector(":scope > label, :scope > h1, :scope > h2, :scope > h3, :scope > summary, :scope > strong, :scope .daily-check-label, :scope .form-tile-copy > strong");
+      }
+
+      function componentDropdown(element) {
+        if (!element) return null;
+        if (element.tagName === "SELECT") return element;
+        return element.querySelector("select");
+      }
+
+      function loadComponentProperties() {
+        var element = selectedComponent();
+        componentProperties.hidden = !element;
+        selectionHelp.hidden = Boolean(element);
+        applyGridButton.disabled = !element;
+        if (!element) return;
+        var textTarget = componentTextTarget(element);
+        propLabel.value = textTarget ? textTarget.textContent.trim() : "";
+        propLabel.disabled = !textTarget;
+        propId.value = element.id || "";
+        propSpan.value = element.style.getPropertyValue("--ve-span") || "12";
+        propOrder.value = element.style.getPropertyValue("--ve-order") || Array.prototype.indexOf.call(element.parentElement.children, element);
+        propVisible.checked = element.getAttribute("data-ve-hidden") !== "true";
+        propLock.checked = element.getAttribute("data-ve-locked") === "true";
+        var dropdown = componentDropdown(element);
+        dropdownProperties.hidden = !dropdown;
+        propOptions.value = dropdown ? Array.prototype.map.call(dropdown.options, function (option) { return option.textContent + (option.value !== option.textContent ? " | " + option.value : ""); }).join("\n") : "";
+        deleteButton.disabled = propLock.checked || element === selectedView();
+        duplicateButton.disabled = propLock.checked || element === selectedView();
+      }
+
+      function previewDocument() {
+        var doc = parseHtml(serializeDocument(sourceDocument));
+        ensureGeneratedStyle(doc);
+        writeThemeMetadata(doc);
+        Array.prototype.forEach.call(doc.querySelectorAll("script"), function (script) { script.type = "application/x-visionary-preview-disabled"; });
+        var login = doc.getElementById("login-view");
+        var shell = doc.getElementById("app-shell");
+        if (login) login.hidden = selectedViewId !== "login-view";
+        if (shell) shell.hidden = selectedViewId === "login-view";
+        Array.prototype.forEach.call(doc.querySelectorAll("main > .app-view"), function (view) { view.hidden = view.id !== selectedViewId; });
+        var editorStyle = doc.createElement("style");
+        editorStyle.id = "visionary-editor-preview-style";
+        editorStyle.textContent = editMode ? [
+          "[data-ve-id]{position:relative;}",
+          "[data-ve-id]:hover{outline:2px dashed #20bfff!important;outline-offset:2px;cursor:pointer!important;}",
+          '[data-ve-id][data-ve-selected="true"]{outline:3px solid #ff3fa4!important;outline-offset:3px;}',
+          '[data-ve-grid="true"]{background-image:linear-gradient(90deg,rgba(32,191,255,.08) 1px,transparent 1px)!important;background-size:calc(100% / var(--ve-columns,12)) 100%!important;}',
+          ".ve-resize-handle{position:absolute!important;z-index:99999!important;right:-7px!important;bottom:-7px!important;width:16px!important;height:16px!important;border:2px solid white!important;border-radius:4px!important;background:#ff3fa4!important;cursor:ew-resize!important;}",
+          "a,button,input,select,textarea{pointer-events:none!important;}"
+        ].join("\n") : "";
+        doc.head.appendChild(editorStyle);
+        var chosen = doc.querySelector('[data-ve-id="' + selectedComponentId + '"]');
+        if (previewScope.value === "component" && chosen) {
+          var isolated = chosen.cloneNode(true);
+          isolated.removeAttribute("hidden");
+          doc.body.innerHTML = "";
+          var componentStage = doc.createElement("main");
+          componentStage.className = "page-shell";
+          componentStage.style.display = "block";
+          componentStage.style.minHeight = "100vh";
+          componentStage.style.padding = "24px";
+          componentStage.appendChild(isolated);
+          doc.body.appendChild(componentStage);
+          chosen = doc.querySelector('[data-ve-id="' + selectedComponentId + '"]');
+        }
+        if (chosen && editMode) chosen.setAttribute("data-ve-selected", "true");
+        return serializeDocument(doc);
+      }
+
+      function schedulePreview() {
+        if (renderTimer) window.clearTimeout(renderTimer);
+        renderTimer = window.setTimeout(renderPreview, 80);
+      }
+
+      function renderPreview() {
+        if (!sourceDocument) return;
+        preview.srcdoc = previewDocument();
+      }
+
+      function renderAll() {
+        populateComponentTree();
+        loadComponentProperties();
+        updateHistoryButtons();
+        schedulePreview();
+      }
+
+      function selectComponent(id) {
+        if (!sourceDocument.querySelector('[data-ve-id="' + id + '"]')) return;
+        selectedComponentId = id;
+        previewScope.value = "component";
+        renderAll();
+      }
+
+      function attachPreviewEvents() {
+        var doc = preview.contentDocument;
+        if (!doc || !editMode) return;
+        doc.addEventListener("click", function (event) {
+          var element = event.target.closest("[data-ve-id]");
+          if (!element) return;
+          event.preventDefault();
+          selectComponent(element.getAttribute("data-ve-id"));
+        }, true);
+        Array.prototype.forEach.call(doc.querySelectorAll("[data-ve-id]"), function (element) {
+          element.draggable = element.getAttribute("data-ve-locked") !== "true";
+          element.addEventListener("dragstart", function (event) { event.dataTransfer.setData("text/visionary-component", element.getAttribute("data-ve-id")); });
+          element.addEventListener("dragover", function (event) { event.preventDefault(); });
+          element.addEventListener("drop", function (event) {
+            event.preventDefault();
+            var movingId = event.dataTransfer.getData("text/visionary-component");
+            var targetId = element.getAttribute("data-ve-id");
+            if (!movingId || movingId === targetId) return;
+            var moving = sourceDocument.querySelector('[data-ve-id="' + movingId + '"]');
+            var target = sourceDocument.querySelector('[data-ve-id="' + targetId + '"]');
+            if (!moving || !target || moving.parentElement !== target.parentElement || moving.getAttribute("data-ve-locked") === "true") return setStatus("Components can be dragged only within the same parent grid.", true);
+            mutate(function () { target.parentElement.insertBefore(moving, target); selectedComponentId = movingId; }, "Component moved and snapped into the grid order.");
+          });
+        });
+        var chosen = doc.querySelector('[data-ve-id="' + selectedComponentId + '"]');
+        if (chosen && chosen.parentElement) {
+          var handle = doc.createElement("span");
+          handle.className = "ve-resize-handle";
+          handle.setAttribute("data-ve-generated-control", "true");
+          chosen.appendChild(handle);
+          handle.addEventListener("pointerdown", function (event) {
+            event.preventDefault(); event.stopPropagation();
+            var source = selectedComponent();
+            if (!source || source.getAttribute("data-ve-locked") === "true") return;
+            var parentRect = chosen.parentElement.getBoundingClientRect();
+            var startX = event.clientX;
+            var startSpan = Number(source.style.getPropertyValue("--ve-span")) || 12;
+            handle.setPointerCapture(event.pointerId);
+            function move(moveEvent) {
+              var columns = Number(source.parentElement.style.getPropertyValue("--ve-columns")) || 12;
+              var deltaColumns = Math.round((moveEvent.clientX - startX) / (parentRect.width / columns));
+              var nextSpan = Math.max(1, Math.min(columns, startSpan + deltaColumns));
+              chosen.style.setProperty("--ve-span", String(nextSpan));
+              propSpan.value = String(nextSpan);
+            }
+            function end() {
+              handle.removeEventListener("pointermove", move);
+              handle.removeEventListener("pointerup", end);
+              var nextSpan = propSpan.value;
+              mutate(function () {
+                source.parentElement.setAttribute("data-ve-grid", "true");
+                source.style.setProperty("--ve-span", nextSpan);
+              }, "Component resized to " + nextSpan + " grid columns.");
+            }
+            handle.addEventListener("pointermove", move);
+            handle.addEventListener("pointerup", end);
+          });
+        }
+      }
+
+      function addComponent(type) {
+        var selected = selectedComponent() || selectedView();
+        if (!selected) return;
+        var container = selected.matches("section,form,fieldset,.panel,.actions,[data-ve-grid]") ? selected : selected.parentElement;
+        mutate(function () {
+          container.setAttribute("data-ve-grid", "true");
+          container.style.setProperty("--ve-columns", "12");
+          var element;
+          var id = uniqueHtmlId("custom-" + type);
+          if (type === "section") {
+            element = sourceDocument.createElement("section");
+            element.className = "panel";
+            var sectionTitle = sourceDocument.createElement("h2"); sectionTitle.textContent = "New section";
+            element.appendChild(sectionTitle);
+          } else if (type === "heading") {
+            element = sourceDocument.createElement("h2"); element.textContent = "New heading";
+          } else if (type === "button") {
+            element = sourceDocument.createElement("button"); element.type = "button"; element.className = "button button-secondary"; element.textContent = "New button";
+          } else {
+            element = sourceDocument.createElement("div"); element.className = "field";
+            var label = sourceDocument.createElement("label"); label.textContent = type === "dropdown" ? "New dropdown" : (type === "textarea" ? "New comment" : "New field");
+            var control;
+            if (type === "dropdown") {
+              control = sourceDocument.createElement("select");
+              ["Choose an option", "Option 1", "Option 2"].forEach(function (text, index) { var option = sourceDocument.createElement("option"); option.value = index ? text : ""; option.textContent = text; control.appendChild(option); });
+            } else if (type === "textarea") control = sourceDocument.createElement("textarea");
+            else { control = sourceDocument.createElement("input"); control.type = "text"; }
+            control.id = id + "-control"; label.setAttribute("for", control.id); element.append(label, control);
+          }
+          element.id = id;
+          element.setAttribute("data-ve-id", uniqueEditorId());
+          element.style.setProperty("--ve-span", type === "section" ? "12" : "6");
+          container.appendChild(element);
+          selectedComponentId = element.getAttribute("data-ve-id");
+        }, "New " + type + " added.");
+      }
+
+      function updateSelectedProperty(kind) {
+        var element = selectedComponent();
+        if (!element) return;
+        mutate(function () {
+          if (kind === "label") {
+            var target = componentTextTarget(element);
+            if (target) target.textContent = propLabel.value;
+          } else if (kind === "id") {
+            var oldId = element.id;
+            var newId = uniqueHtmlId(propId.value || "component", element);
+            element.id = newId;
+            if (oldId) Array.prototype.forEach.call(sourceDocument.querySelectorAll('[for="' + oldId + '"]'), function (label) { label.setAttribute("for", newId); });
+          } else if (kind === "span") {
+            element.parentElement.setAttribute("data-ve-grid", "true");
+            element.style.setProperty("--ve-span", propSpan.value);
+          } else if (kind === "order") element.style.setProperty("--ve-order", String(Math.max(0, Number(propOrder.value) || 0)));
+          else if (kind === "visible") element.setAttribute("data-ve-hidden", propVisible.checked ? "false" : "true");
+          else if (kind === "lock") element.setAttribute("data-ve-locked", propLock.checked ? "true" : "false");
+          else if (kind === "options") {
+            var dropdown = componentDropdown(element);
+            if (dropdown) {
+              dropdown.innerHTML = "";
+              propOptions.value.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean).forEach(function (line) {
+                var parts = line.split("|");
+                var option = sourceDocument.createElement("option");
+                option.textContent = parts[0].trim();
+                option.value = parts.length > 1 ? parts.slice(1).join("|").trim() : parts[0].trim();
+                dropdown.appendChild(option);
+              });
+            }
+          }
+        }, "Component updated.");
+      }
+
+      function moveSelected(direction) {
+        var element = selectedComponent();
+        if (!element || element.getAttribute("data-ve-locked") === "true") return;
+        var sibling = direction < 0 ? element.previousElementSibling : element.nextElementSibling;
+        if (!sibling) return;
+        mutate(function () {
+          if (direction < 0) element.parentElement.insertBefore(element, sibling);
+          else element.parentElement.insertBefore(sibling, element);
+        }, "Component moved.");
+      }
+
+      function populateThemes() {
+        themeTarget.innerHTML = "";
+        var names = ["default"];
+        var themePattern = /html\[data-theme=["']([^"']+)["']\]/g;
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("style"), function (style) {
+          var match;
+          while ((match = themePattern.exec(style.textContent))) if (names.indexOf(match[1]) === -1) names.push(match[1]);
+        });
+        names.forEach(function (name) { var option = document.createElement("option"); option.value = name; option.textContent = name === "default" ? "Base / Matcha" : name; themeTarget.appendChild(option); });
+        loadThemeControls();
+      }
+
+      function cssColorFromDocument(theme, variable, fallback) {
+        if (themeOverrides[theme] && themeOverrides[theme][variable]) return themeOverrides[theme][variable];
+        var selector = theme === "default" ? ":root" : 'html[data-theme="' + theme + '"]';
+        var pattern = new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:\\s*([^;]+)", "i");
+        var value = "";
+        Array.prototype.some.call(sourceDocument.querySelectorAll("style"), function (style) {
+          var blocks = style.textContent.split("}");
+          return blocks.some(function (block) {
+            if (block.indexOf(selector) === -1) return false;
+            var match = pattern.exec(block);
+            if (match) { value = match[1].trim(); return true; }
+            return false;
+          });
+        });
+        return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+      }
+
+      function setColorPair(name, value) {
+        document.getElementById("color-" + name).value = value;
+        document.getElementById("color-" + name + "-text").value = value;
+      }
+
+      function loadThemeControls() {
+        if (!sourceDocument) return;
+        var theme = themeTarget.value || "default";
+        setColorPair("page", cssColorFromDocument(theme, "--page", "#f2f4e8"));
+        setColorPair("panel", cssColorFromDocument(theme, "--cream", "#fffdf6"));
+        setColorPair("text", cssColorFromDocument(theme, "--ink", "#293225"));
+        setColorPair("accent", cssColorFromDocument(theme, "--matcha-700", "#466136"));
+        setColorPair("border", cssColorFromDocument(theme, "--line", "#d7dfc9"));
+      }
+
+      function applyThemeColors() {
+        var theme = themeTarget.value || "default";
+        mutate(function () {
+          themeOverrides[theme] = {
+            "--page": document.getElementById("color-page-text").value,
+            "--cream": document.getElementById("color-panel-text").value,
+            "--paper": document.getElementById("color-panel-text").value,
+            "--ink": document.getElementById("color-text-text").value,
+            "--matcha-700": document.getElementById("color-accent-text").value,
+            "--matcha-900": document.getElementById("color-accent-text").value,
+            "--line": document.getElementById("color-border-text").value,
+            "--control-line": document.getElementById("color-border-text").value
+          };
+        }, "Theme colors applied.");
+      }
+
+      function taskConfig() {
+        var element = sourceDocument.getElementById(CONFIG_ID);
+        if (!element) {
+          element = sourceDocument.createElement("script");
+          element.id = CONFIG_ID; element.type = "application/json"; element.textContent = '{"version":1,"updatedAt":"","overrides":{},"customTasks":[]}';
+          sourceDocument.body.appendChild(element);
+        }
+        try { return JSON.parse(element.textContent || "{}"); }
+        catch (error) { return { version: 1, updatedAt: "", overrides: {}, customTasks: [] }; }
+      }
+
+      function saveTaskConfig(config) {
+        config.version = 1;
+        config.updatedAt = new Date().toISOString();
+        sourceDocument.getElementById(CONFIG_ID).textContent = JSON.stringify(config).replace(/</g, "\\u003c");
+      }
+
+      function baseTasks() {
+        var map = {};
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("[data-daily-fixed]"), function (element) {
+          var id = element.getAttribute("data-daily-fixed");
+          if (!id || id.indexOf("custom-") === 0 || map[id]) return;
+          map[id] = { id: id, name: element.getAttribute("data-label") || id, points: Number(element.getAttribute("data-points")) || 0, group: element.getAttribute("data-group") || "Other", custom: false };
+        });
+        var config = taskConfig();
+        (config.customTasks || []).forEach(function (task) { map[task.id] = { id: task.id, name: task.name, points: Number(task.points) || 0, group: task.section || "Custom Tasks", custom: true }; });
+        return Object.keys(map).map(function (id) { return map[id]; });
+      }
+
+      function populateTasks() {
+        if (!sourceDocument) return;
+        var previous = taskSelect.value;
+        taskSelect.innerHTML = "";
+        var config = taskConfig();
+        baseTasks().sort(function (a, b) { return a.group.localeCompare(b.group) || a.name.localeCompare(b.name); }).forEach(function (task) {
+          var override = config.overrides && config.overrides[task.id];
+          var custom = task.custom && (config.customTasks || []).find(function (item) { return item.id === task.id; });
+          var name = custom ? custom.name : (override && override.name ? override.name : task.name);
+          var points = custom ? custom.points : (override ? override.points : task.points);
+          var active = custom ? custom.active !== false : (!override || override.active !== false);
+          var option = document.createElement("option"); option.value = task.id; option.textContent = (active ? "" : "[Archived] ") + name + " · " + points + " pts"; taskSelect.appendChild(option);
+        });
+        if (Array.prototype.some.call(taskSelect.options, function (option) { return option.value === previous; })) taskSelect.value = previous;
+        loadTaskProperties();
+      }
+
+      function taskValues(id) {
+        var task = baseTasks().find(function (item) { return item.id === id; });
+        if (!task) return null;
+        var config = taskConfig();
+        if (task.custom) {
+          var custom = (config.customTasks || []).find(function (item) { return item.id === id; });
+          return custom ? { task: task, name: custom.name, points: custom.points, active: custom.active !== false, custom: custom } : null;
+        }
+        var override = config.overrides && config.overrides[id];
+        return { task: task, name: override && override.name ? override.name : task.name, points: override ? override.points : task.points, active: !override || override.active !== false, override: override };
+      }
+
+      function loadTaskProperties() {
+        var values = taskValues(taskSelect.value);
+        taskProperties.hidden = !values;
+        if (!values) return;
+        taskName.value = values.name;
+        taskPoints.value = values.points;
+        taskActive.checked = values.active;
+      }
+
+      function saveCurrentTask() {
+        var values = taskValues(taskSelect.value);
+        if (!values || !taskName.value.trim()) return;
+        mutate(function () {
+          var config = taskConfig();
+          config.overrides = config.overrides || {};
+          config.customTasks = config.customTasks || [];
+          if (values.task.custom) {
+            var custom = config.customTasks.find(function (item) { return item.id === values.task.id; });
+            custom.name = taskName.value.trim(); custom.points = Math.max(0, Number(taskPoints.value) || 0); custom.active = taskActive.checked;
+          } else config.overrides[values.task.id] = { name: taskName.value.trim(), points: Math.max(0, Number(taskPoints.value) || 0), active: taskActive.checked };
+          saveTaskConfig(config);
+        }, "Task configuration updated.");
+      }
+
+      function addCustomTask() {
+        var name = document.getElementById("new-task-name").value.trim();
+        if (!name) return setStatus("Enter a custom task name.", true);
+        mutate(function () {
+          var config = taskConfig();
+          config.customTasks = config.customTasks || [];
+          config.customTasks.push({
+            id: "custom-" + Date.now().toString(36), name: name,
+            section: document.getElementById("new-task-section").value.trim() || "Custom Tasks",
+            time: document.getElementById("new-task-time").value.trim(),
+            points: Math.max(0, Number(document.getElementById("new-task-points").value) || 0),
+            shifts: ["B1", "B2", "G1", "G2"], requireAttribution: document.getElementById("new-task-attribution").checked,
+            active: true, order: config.customTasks.length
+          });
+          saveTaskConfig(config);
+        }, "Custom task added.");
+        document.getElementById("new-task-name").value = "";
+      }
+
+      function validateDocument() {
+        var results = [];
+        var ids = {};
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("[id]"), function (element) {
+          if (ids[element.id]) results.push({ level: "error", message: "Duplicate HTML ID: " + element.id });
+          ids[element.id] = true;
+        });
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("select"), function (select) {
+          if (!select.options.length) results.push({ level: "error", message: "Dropdown has no choices: " + (select.id || componentName(select)) });
+        });
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll('[data-ve-grid="true"] > [data-ve-id]'), function (element) {
+          var span = Number(element.style.getPropertyValue("--ve-span")) || 12;
+          if (span < 1 || span > 12) results.push({ level: "error", message: "Invalid grid width on " + componentName(element) });
+        });
+        Array.prototype.forEach.call(sourceDocument.querySelectorAll("label[for]"), function (label) {
+          if (!sourceDocument.getElementById(label.getAttribute("for"))) results.push({ level: "warning", message: "Label points to a missing field: " + label.getAttribute("for") });
+        });
+        if (!sourceDocument.getElementById(CONFIG_ID)) results.push({ level: "warning", message: "No embedded task configuration block was found." });
+        if (!results.length) results.push({ level: "ok", message: "No duplicate IDs, empty dropdowns, broken labels, or invalid grid widths found." });
+        validationList.innerHTML = "";
+        results.forEach(function (result) { var item = document.createElement("li"); item.className = result.level; item.textContent = result.message; validationList.appendChild(item); });
+        validationModal.hidden = false;
+        return !results.some(function (result) { return result.level === "error"; });
+      }
+
+      function cleanExportDocument() {
+        var doc = parseHtml(serializeDocument(sourceDocument));
+        ensureGeneratedStyle(doc);
+        writeThemeMetadata(doc);
+        Array.prototype.forEach.call(doc.querySelectorAll(".ve-resize-handle, #visionary-editor-preview-style, [data-ve-generated-control]"), function (element) { element.remove(); });
+        Array.prototype.forEach.call(doc.querySelectorAll("[data-ve-selected], [draggable]"), function (element) { element.removeAttribute("data-ve-selected"); element.removeAttribute("draggable"); });
+        var updatedTime = doc.querySelector(".last-updated time");
+        if (updatedTime) {
+          var now = new Date();
+          updatedTime.dateTime = now.toISOString().slice(0, 10);
+          updatedTime.textContent = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+        }
+        return doc;
+      }
+
+      function exportHtml() {
+        if (!validateDocument()) return setStatus("Fix validation errors before exporting.", true);
+        download(serializeDocument(cleanExportDocument()), "index.html", "text/html");
+        setStatus("Generated index.html downloaded. Upload it manually to the root of your GitHub repository.", false);
+      }
+
+      function saveProject() {
+        var project = { editor: "Visionary PC Editor", version: EDITOR_VERSION, savedAt: new Date().toISOString(), sourceName: sourceName, selectedViewId: selectedViewId, themes: themeOverrides, html: serializeDocument(sourceDocument) };
+        download(JSON.stringify(project), "visionary-project.json", "application/json");
+        setStatus("Editable project backup downloaded.", false);
+      }
+
+      function readFile(file, callback) {
+        var reader = new FileReader();
+        setStatus("Loading " + file.name + "…", false);
+        reader.onloadstart = function () { documentInfo.textContent = file.name + " · loading"; };
+        reader.onload = function () { callback(String(reader.result || "")); };
+        reader.onerror = function () { setStatus("The selected file could not be read.", true); };
+        reader.readAsText(file);
+      }
+
+      function chooseHtmlFile() {
+        htmlFile.value = "";
+        setStatus("Choose the index.html file from your device.", false);
+        try {
+          if (typeof htmlFile.showPicker === "function") htmlFile.showPicker();
+          else htmlFile.click();
+        } catch (error) {
+          htmlFile.click();
+        }
+      }
+
+      openHtmlButton.addEventListener("click", chooseHtmlFile);
+      document.getElementById("empty-open-html").addEventListener("click", chooseHtmlFile);
+      htmlFile.addEventListener("change", function () {
+        var file = htmlFile.files && htmlFile.files[0]; if (!file) return;
+        readFile(file, function (text) { try { loadDocument(text, file.name); } catch (error) { setStatus(error.message, true); } });
+        htmlFile.value = "";
+      });
+      openProjectButton.addEventListener("click", function () { projectFile.click(); });
+      projectFile.addEventListener("change", function () {
+        var file = projectFile.files && projectFile.files[0]; if (!file) return;
+        readFile(file, function (text) {
+          try {
+            var project = JSON.parse(text);
+            if (!project.html) throw new Error("This project backup does not contain HTML.");
+            loadDocument(project.html, project.sourceName || "index.html");
+            themeOverrides = project.themes || themeOverrides;
+            selectedViewId = sourceDocument.getElementById(project.selectedViewId) ? project.selectedViewId : selectedViewId;
+            ensureGeneratedStyle(sourceDocument); writeThemeMetadata(sourceDocument); populateViews(); populateThemes(); renderAll();
+            setStatus("Editable project opened.", false);
+          } catch (error) { setStatus("Project could not be opened: " + error.message, true); }
+        });
+        projectFile.value = "";
+      });
+      saveProjectButton.addEventListener("click", saveProject);
+      exportButton.addEventListener("click", exportHtml);
+      validateButton.addEventListener("click", validateDocument);
+      document.getElementById("close-validation").addEventListener("click", function () { validationModal.hidden = true; });
+      validationModal.addEventListener("click", function (event) { if (event.target === validationModal) validationModal.hidden = true; });
+      undoButton.addEventListener("click", function () {
+        if (!undoStack.length) return;
+        redoStack.push({ html: serializeDocument(sourceDocument), selectedViewId: selectedViewId, selectedComponentId: selectedComponentId, themes: JSON.parse(JSON.stringify(themeOverrides)) });
+        restoreSnapshot(undoStack.pop()); updateHistoryButtons(); setStatus("Undid the last change.", false);
+      });
+      redoButton.addEventListener("click", function () {
+        if (!redoStack.length) return;
+        undoStack.push({ html: serializeDocument(sourceDocument), selectedViewId: selectedViewId, selectedComponentId: selectedComponentId, themes: JSON.parse(JSON.stringify(themeOverrides)) });
+        restoreSnapshot(redoStack.pop()); updateHistoryButtons(); setStatus("Restored the change.", false);
+      });
+      deviceSelect.addEventListener("change", function () {
+        deviceShell.style.width = deviceSelect.value + "px";
+        deviceFrame.classList.toggle("desktop", Number(deviceSelect.value) > 800);
+      });
+      previewScope.addEventListener("change", schedulePreview);
+      previewModeButton.addEventListener("click", function () { editMode = !editMode; previewModeButton.textContent = editMode ? "Preview mode" : "Edit mode"; schedulePreview(); });
+      viewSelect.addEventListener("change", function () { selectedViewId = viewSelect.value; selectedComponentId = ""; previewScope.value = "page"; renderAll(); });
+      function moveTab(direction) {
+        var view = selectedView(); if (!view || !view.parentElement) return;
+        var sibling = direction < 0 ? view.previousElementSibling : view.nextElementSibling;
+        while (sibling && !sibling.matches(".app-view")) sibling = direction < 0 ? sibling.previousElementSibling : sibling.nextElementSibling;
+        if (!sibling) return;
+        mutate(function () { if (direction < 0) view.parentElement.insertBefore(view, sibling); else view.parentElement.insertBefore(sibling, view); }, "Tab order updated."); populateViews();
+      }
+      tabUpButton.addEventListener("click", function () { moveTab(-1); });
+      tabDownButton.addEventListener("click", function () { moveTab(1); });
+      componentTree.addEventListener("click", function (event) { var button = event.target.closest("[data-component-id]"); if (button) selectComponent(button.dataset.componentId); });
+      preview.addEventListener("load", attachPreviewEvents);
+      Array.prototype.forEach.call(document.querySelectorAll("[data-add]"), function (button) { button.addEventListener("click", function () { addComponent(button.dataset.add); }); });
+      propLabel.addEventListener("change", function () { updateSelectedProperty("label"); });
+      propId.addEventListener("change", function () { updateSelectedProperty("id"); });
+      propSpan.addEventListener("change", function () { updateSelectedProperty("span"); });
+      propOrder.addEventListener("change", function () { updateSelectedProperty("order"); });
+      propVisible.addEventListener("change", function () { updateSelectedProperty("visible"); });
+      propLock.addEventListener("change", function () { updateSelectedProperty("lock"); });
+      propOptions.addEventListener("change", function () { updateSelectedProperty("options"); });
+      moveBeforeButton.addEventListener("click", function () { moveSelected(-1); });
+      moveAfterButton.addEventListener("click", function () { moveSelected(1); });
+      duplicateButton.addEventListener("click", function () {
+        var element = selectedComponent(); if (!element || element.getAttribute("data-ve-locked") === "true") return;
+        mutate(function () {
+          var clone = element.cloneNode(true); clone.removeAttribute("id"); clone.setAttribute("data-ve-id", uniqueEditorId());
+          var idMap = {};
+          Array.prototype.forEach.call(clone.querySelectorAll("[id]"), function (child) {
+            var oldId = child.id;
+            var newId = uniqueHtmlId(oldId + "-copy");
+            idMap[oldId] = newId;
+            child.id = newId;
+          });
+          Array.prototype.forEach.call(clone.querySelectorAll("[for]"), function (label) {
+            var oldFor = label.getAttribute("for");
+            if (idMap[oldFor]) label.setAttribute("for", idMap[oldFor]);
+          });
+          element.after(clone); selectedComponentId = clone.getAttribute("data-ve-id");
+        }, "Component duplicated.");
+      });
+      deleteButton.addEventListener("click", function () {
+        var element = selectedComponent(); if (!element || element.getAttribute("data-ve-locked") === "true") return;
+        if (!window.confirm("Delete this component from the generated app?")) return;
+        mutate(function () { element.remove(); selectedComponentId = ""; }, "Component deleted.");
+      });
+      applyGridButton.addEventListener("click", function () {
+        var element = selectedComponent(); if (!element) return;
+        var parent = element.matches("section,form,fieldset,.panel,.actions") ? element : element.parentElement;
+        mutate(function () { parent.setAttribute("data-ve-grid", "true"); parent.style.setProperty("--ve-columns", gridColumns.value); parent.style.setProperty("--ve-gap", Math.max(0, Number(gridGap.value) || 0) + "px"); }, "Grid applied to selected container.");
+      });
+      themeTarget.addEventListener("change", loadThemeControls);
+      ["page", "panel", "text", "accent", "border"].forEach(function (name) {
+        var color = document.getElementById("color-" + name), textInput = document.getElementById("color-" + name + "-text");
+        color.addEventListener("input", function () { textInput.value = color.value; });
+        textInput.addEventListener("change", function () { if (/^#[0-9a-f]{6}$/i.test(textInput.value)) color.value = textInput.value; });
+      });
+      applyColorsButton.addEventListener("click", applyThemeColors);
+      resetColorsButton.addEventListener("click", function () { var theme = themeTarget.value; mutate(function () { delete themeOverrides[theme]; }, "Theme override removed."); loadThemeControls(); });
+      taskSelect.addEventListener("change", loadTaskProperties);
+      saveTaskButton.addEventListener("click", saveCurrentTask);
+      resetTaskButton.addEventListener("click", function () {
+        var values = taskValues(taskSelect.value); if (!values) return;
+        mutate(function () {
+          var config = taskConfig();
+          if (values.task.custom) config.customTasks = (config.customTasks || []).filter(function (task) { return task.id !== values.task.id; });
+          else if (config.overrides) delete config.overrides[values.task.id];
+          saveTaskConfig(config);
+        }, values.task.custom ? "Custom task removed." : "Task restored to its original default.");
+      });
+      addTaskButton.addEventListener("click", addCustomTask);
+
+      deviceSelect.dispatchEvent(new Event("change"));
+    }());
+  </script>
+</body>
+</html>
